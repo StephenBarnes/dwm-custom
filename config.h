@@ -1,5 +1,8 @@
 /* See LICENSE file for copyright and license details. */
 
+// Header for keysyms like volume-change buttons.
+#include <X11/XF86keysym.h>
+
 /* appearance */
 static const unsigned int borderpx  = 1;        /* border pixel of windows */
 static const unsigned int snap      = 32;       /* snap pixel */
@@ -61,16 +64,19 @@ static const char *dmenucmd[] = { "dmenu_run", "-m", dmenumon, "-fn", dmenufont,
 static const char *termcmd[]  = { "terminator", NULL };
 static const char *slockcmd[] = { "slock", NULL }; // Lock screen
 
+static const char *upvol[]   = { "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%+", NULL };
+static const char *downvol[] = { "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%-", NULL };
+static const char *mutevol[] = { "wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle", NULL };
+
 static const Key keys[] = {
 	// DEFAULTS
 	/* modifier                     key        function        argument */
-	{ MODKEY,                       XK_p,      spawn,          {.v = dmenucmd } },
 	{ MODKEY|ShiftMask,             XK_Return, spawn,          {.v = termcmd } },
 	{ MODKEY,                       XK_b,      togglebar,      {0} },
 	{ MODKEY,                       XK_j,      focusstack,     {.i = +1 } },
 	{ MODKEY,                       XK_k,      focusstack,     {.i = -1 } },
 	{ MODKEY,                       XK_i,      incnmaster,     {.i = +1 } },
-	{ MODKEY,                       XK_d,      incnmaster,     {.i = -1 } },
+	//{ MODKEY,                       XK_d,      incnmaster,     {.i = -1 } }, // I don't know what this is, seems to do nothing, commented out bc conflicts with dmenu.
 	{ MODKEY,                       XK_h,      setmfact,       {.f = -0.05} },
 	{ MODKEY,                       XK_l,      setmfact,       {.f = +0.05} },
 	{ MODKEY,                       XK_Return, zoom,           {0} },
@@ -100,7 +106,12 @@ static const Key keys[] = {
 
 	// CUSTOM
     { MODKEY,                      XK_n,       spawn,    {.v = slockcmd } }, // Lock key for slock (screen locker). Lock key on keyboard is not a distinct keysym, it's seen as super+N. (Probably actually super+L, but Dvorak makes L->N.)
-    //{ MODKEY|ShiftMask,            XK_r,       quit,           {1} }, // Restart dwm with Mod+Shift+r -- doesn't work, quits without restarting dwm.
+    { MODKEY|ShiftMask,            XK_r,       quit,           {1} }, // Restart dwm with Mod+Shift+r
+	{ MODKEY,                       XK_d,      spawn,          {.v = dmenucmd } }, // Mod+d for dmenu
+	// Volume
+	{ 0, XF86XK_AudioRaiseVolume, spawn, {.v = upvol } },
+	{ 0, XF86XK_AudioLowerVolume, spawn, {.v = downvol } },
+	{ 0, XF86XK_AudioMute,        spawn, {.v = mutevol } },
 };
 
 /* button definitions */
