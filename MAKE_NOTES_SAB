@@ -1,0 +1,11 @@
+make
+sudo make clean install
+
+# mkdir -p ~/.local/share/xsessions
+# nano ~/.local/share/xsessions/dwm-local.desktop
+
+# [Desktop Entry]
+# Name=dwm (local)
+# Comment=Dynamic window manager (local build)
+# Exec=/usr/local/bin/dwm
+# Type=XSession
