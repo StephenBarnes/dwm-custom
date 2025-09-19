@@ -1,0 +1,12 @@
+make
+sudo make clean install
+
+# vim ~/.local/share/xsessions/dwm-local.desktop
+
+# [Desktop Entry]
+# Name=dwm (local)
+# Comment=Dynamic window manager (local build)
+# Exec=/usr/local/bin/dwm
+# Type=XSession
+
+# Also copied to /usr/local/share/xsessions/. The .local one doesn't seem to work with LightDM since it's user-specific.
