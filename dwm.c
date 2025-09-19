@@ -1319,10 +1319,15 @@ propertynotify(XEvent *e)
 	}
 }
 
-void
+static int restart = 0;
+
+static void
 quit(const Arg *arg)
 {
-	running = 0;
+	// Added: signal restart if arg was 1.
+    if (arg->i)
+        restart = 1;    /* signal restart */
+    running = 0;        /* stop the main loop */
 }
 
 Monitor *
@@ -2269,5 +2274,5 @@ main(int argc, char *argv[])
 	run();
 	cleanup();
 	XCloseDisplay(dpy);
-	return EXIT_SUCCESS;
+	return restart ? 1 : EXIT_SUCCESS;
 }
