@@ -172,6 +172,7 @@ static void enternotify(XEvent *e);
 static void expose(XEvent *e);
 static void focus(Client *c);
 static void focusin(XEvent *e);
+static void focusothermon(const Arg *arg);
 static void focusmon(const Arg *arg);
 static void focusstack(const Arg *arg);
 static Atom getatomprop(Client *c, Atom prop);
@@ -897,6 +898,46 @@ focusmon(const Arg *arg)
 	unfocus(selmon->sel, 0);
 	selmon = m;
 	focus(NULL);
+}
+
+// Focus other monitor, and warp pointer to analogous position
+static void
+focusothermon(const Arg *arg)
+{
+	Monitor *m;
+	int x, y;
+	double relx = 0.0, rely = 0.0;
+	int warp = 0;
+
+	if (!mons->next)
+		return;
+
+	if (getrootptr(&x, &y) &&
+			x >= selmon->mx && x < selmon->mx + selmon->mw &&
+			y >= selmon->my && y < selmon->my + selmon->mh &&
+			selmon->mw > 0 && selmon->mh > 0) {
+		relx = (double)(x - selmon->mx) / (double)selmon->mw;
+		rely = (double)(y - selmon->my) / (double)selmon->mh;
+		warp = 1;
+	}
+
+	m = selmon->next ? selmon->next : mons;
+	if (m == selmon)
+		return;
+
+	unfocus(selmon->sel, 0);
+	selmon = m;
+	focus(NULL);
+
+	if (warp) {
+		int nx = selmon->mx + (int)(relx * selmon->mw);
+		int ny = selmon->my + (int)(rely * selmon->mh);
+		if (nx >= selmon->mx + selmon->mw)
+			nx = selmon->mx + selmon->mw - 1;
+		if (ny >= selmon->my + selmon->mh)
+			ny = selmon->my + selmon->mh - 1;
+		XWarpPointer(dpy, None, root, 0, 0, 0, 0, nx, ny);
+	}
 }
 
 void
