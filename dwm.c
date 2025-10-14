@@ -239,6 +239,9 @@ static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
+static void applytaglayout(Monitor *m);
+static unsigned int gettagindex(unsigned int tagmask);
+static void remembertaglayout(Monitor *m);
 
 /* variables */
 static const char broken[] = "broken";
@@ -280,6 +283,9 @@ static Clientlist *cl;
 
 /* compile-time check if all tags fit into an unsigned int bit array. */
 struct NumTags { char limitexceeded[LENGTH(tags) > 31 ? -1 : 1]; };
+
+static unsigned int taglayouts_sel[LENGTH(tags)];
+static const Layout *taglayouts[LENGTH(tags)][2];
 
 /* function implementations */
 void
@@ -415,6 +421,44 @@ attach(Client *c)
 	c->mon->cl->clients = c;
 }
 
+static unsigned int
+gettagindex(unsigned int tagmask)
+{
+	unsigned int i;
+
+	if (!tagmask)
+		return 0;
+	for (i = 0; i < LENGTH(tags); i++)
+		if (tagmask & (1 << i))
+			return i;
+	return 0;
+}
+
+static void
+applytaglayout(Monitor *m)
+{
+	unsigned int idx = gettagindex(m->tagset[m->seltags]);
+
+	m->lt[0] = taglayouts[idx][0];
+	m->lt[1] = taglayouts[idx][1];
+	m->sellt = taglayouts_sel[idx];
+	strncpy(m->ltsymbol, m->lt[m->sellt]->symbol, sizeof m->ltsymbol);
+}
+
+static void
+remembertaglayout(Monitor *m)
+{
+	unsigned int tagmask = m->tagset[m->seltags];
+	unsigned int i;
+
+	for (i = 0; i < LENGTH(tags); i++)
+		if (tagmask & (1 << i)) {
+			taglayouts[i][0] = m->lt[0];
+			taglayouts[i][1] = m->lt[1];
+			taglayouts_sel[i] = m->sellt;
+		}
+}
+
 void
 attachclients(Monitor *m)
 {
@@ -426,6 +470,8 @@ attachclients(Monitor *m)
 
 	if (!m)
 		return;
+
+	applytaglayout(m);
 
 	/* collect information about the tags in use */
 	for (tm = mons; tm; tm = tm->next)
@@ -1621,6 +1667,7 @@ setlayout(const Arg *arg)
 	if (arg && arg->v)
 		selmon->lt[selmon->sellt] = (Layout *)arg->v;
 	strncpy(selmon->ltsymbol, selmon->lt[selmon->sellt]->symbol, sizeof selmon->ltsymbol);
+	remembertaglayout(selmon);
 	if (selmon->sel)
 		arrange(selmon);
 	else
@@ -1668,6 +1715,11 @@ setup(void)
 	drw = drw_create(dpy, screen, root, sw, sh);
 	if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
 		die("no fonts could be loaded.");
+	for (i = 0; i < LENGTH(tags); i++) {
+		taglayouts[i][0] = &layouts[0];
+		taglayouts[i][1] = &layouts[1 % LENGTH(layouts)];
+		taglayouts_sel[i] = 0;
+	}
 	lrpad = drw->fonts->h;
 	bh = drw->fonts->h + 2;
 	updategeom();
