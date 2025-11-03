@@ -8,18 +8,25 @@ static const unsigned int borderpx  = 1;        /* border pixel of windows */
 static const unsigned int snap      = 32;       /* snap pixel */
 static const int showbar            = 1;        /* 0 means no bar */
 static const int topbar             = 1;        /* 0 means bottom bar */
-static const char *fonts[]          = { "monospace:size=10" };
-static const char dmenufont[]       = "monospace:size=10";
+static const char *fonts[]          = { "monospace:size=12" };
+static const char dmenufont[]       = "monospace:size=12";
 static const char col_black[]       = "#000000";
 static const char col_gray1[]       = "#222222";
 static const char col_gray2[]       = "#444444";
 static const char col_gray3[]       = "#bbbbbb";
 static const char col_gray4[]       = "#eeeeee";
 static const char col_cyan[]        = "#005577";
+
+static const char col_brown[] = "#241f19";
+static const char col_brown2[] = "#eaddca";
+static const char col_brown3[] = "#4f443a";
+static const char col_brown4[] = "#b87333";
+static const char col_brown5[] = "#988558";
+
 static const char *colors[][3]      = {
-	/*               fg         bg         border   */
-	[SchemeNorm] = { col_gray3, col_black, col_gray3 },
-	[SchemeSel]  = { col_gray4, col_cyan,  col_cyan  },
+	/*               fg          bg           border   */
+	[SchemeNorm] = { col_brown2, col_brown,   col_brown5 },
+	[SchemeSel]  = { col_gray4,  col_brown3,  col_brown4  },
 };
 
 /* tagging */
@@ -76,7 +83,7 @@ static const Key keys[] = {
 
 	// Spawn terminal
 	{MODKEY | ShiftMask, XK_Return, spawn, {.v = termcmd}},
-	//{MODKEY, XK_b, togglebar, {0}},
+	{MODKEY, XK_b, togglebar, {0}},
 
 	// Move focus between windows
 	{MODKEY, XK_t, focusstack, {.i = +1}},
@@ -90,7 +97,8 @@ static const Key keys[] = {
 	{MODKEY, XK_a, setmfact, {.f = -0.05}},
 	{MODKEY, XK_o, setmfact, {.f = +0.05}},
 
-	// Focus first window
+	// Swap focused client with master window.
+	// Tiled layout has 1 master window (left) and 1 stack (right).
 	{MODKEY, XK_Return, zoom, {0}},
 
 	// Go to last tag/view
@@ -135,6 +143,8 @@ static const Key keys[] = {
 
 	// Clipmenu (clipboard manager) with mod+v
 	{MODKEY, XK_v, spawn, SHCMD("clipmenu")},
+
+	// TODO later consider getting fibonacci / flextile patch.
 };
 
 /* button definitions */
