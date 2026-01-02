@@ -22,11 +22,13 @@ static const char col_brown2[] = "#eaddca";
 static const char col_brown3[] = "#4f443a";
 static const char col_brown4[] = "#b87333";
 static const char col_brown5[] = "#988558";
+static const char col_brown6[] = "#39322a"; /* intermediate bg for other monitor's active tag */
 
 static const char *colors[][3]      = {
 	/*               fg          bg           border   */
 	[SchemeNorm] = { col_brown2, col_brown,   col_brown5 },
 	[SchemeSel]  = { col_gray4,  col_brown3,  col_brown4  },
+	[SchemeSelOther] = { col_brown2, col_brown6, col_brown5 }, /* tag active on other monitor */
 };
 
 /* tagging */
