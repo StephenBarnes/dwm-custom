@@ -22,13 +22,15 @@ static const char col_brown2[] = "#eaddca";
 static const char col_brown3[] = "#4f443a";
 static const char col_brown4[] = "#b87333";
 static const char col_brown5[] = "#988558";
-static const char col_brown6[] = "#39322a"; /* intermediate bg for other monitor's active tag */
+static const char col_monitor_1_tag[] = "#353a4a";
+static const char col_monitor_2_tag[]  = "#4a3535";
 
-static const char *colors[][3]      = {
-	/*               fg          bg           border   */
-	[SchemeNorm] = { col_brown2, col_brown,   col_brown5 },
-	[SchemeSel]  = { col_gray4,  col_brown3,  col_brown4  },
-	[SchemeSelOther] = { col_brown2, col_brown6, col_brown5 }, /* tag active on other monitor */
+static const char *colors[][3] = {
+	/*{fg, bg, border}*/
+	[SchemeNorm] = {col_brown2, col_brown, col_brown5},
+	[SchemeSel] = {col_gray4, col_brown3, col_brown4},
+	[SchemeMon1] = {col_brown2, col_monitor_1_tag, col_brown5},
+	[SchemeMon2] = {col_brown2, col_monitor_2_tag, col_brown5},
 };
 
 /* tagging */

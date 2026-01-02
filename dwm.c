@@ -58,7 +58,7 @@
 
 /* enums */
 enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
-enum { SchemeNorm, SchemeSel, SchemeSelOther }; /* color schemes */
+enum { SchemeNorm, SchemeSel, SchemeMon1, SchemeMon2 }; /* color schemes */
 enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
        NetWMFullscreen, NetActiveWindow, NetWMWindowType,
        NetWMWindowTypeDialog, NetClientList, NetLast }; /* EWMH atoms */
@@ -831,19 +831,13 @@ drawbar(Monitor *m)
 	x = 0;
 	for (i = 0; i < LENGTH(tags); i++) {
 		w = TEXTW(tags[i]);
-		/* determine color scheme: SchemeSel if active on this monitor,
-		 * SchemeSelOther if active on another monitor, SchemeNorm otherwise */
+		/* determine color scheme based on which monitor has this tag active:
+		 * SchemeMon1 if active on monitor 1, SchemeMon2 if active on monitor 2 */
 		int scheme_idx = SchemeNorm;
-		if (m->tagset[m->seltags] & 1 << i) {
-			scheme_idx = SchemeSel;
-		} else {
-			Monitor *om;
-			for (om = mons; om; om = om->next) {
-				if (om != m && (om->tagset[om->seltags] & 1 << i)) {
-					scheme_idx = SchemeSelOther;
-					break;
-				}
-			}
+		if (mons && (mons->tagset[mons->seltags] & 1 << i)) {
+			scheme_idx = SchemeMon1;
+		} else if (mons && mons->next && (mons->next->tagset[mons->next->seltags] & 1 << i)) {
+			scheme_idx = SchemeMon2;
 		}
 		drw_setscheme(drw, scheme[scheme_idx]);
 		drw_text(drw, x, 0, w, bh, lrpad / 2, tags[i], urg & 1 << i);
