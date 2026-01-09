@@ -233,6 +233,7 @@ static void updatetitle(Client *c);
 static void updatewindowtype(Client *c);
 static void updatewmhints(Client *c);
 static void view(const Arg *arg);
+static void viewothermon(const Arg *arg);
 static Client *wintoclient(Window w);
 static Monitor *wintomon(Window w);
 static int xerror(Display *dpy, XErrorEvent *ee);
@@ -1938,6 +1939,7 @@ toggletag(const Arg *arg)
 	}
 }
 
+/* Currently unused.
 void
 toggleview(const Arg *arg)
 {
@@ -1945,7 +1947,7 @@ toggleview(const Arg *arg)
 	unsigned int newtagset = selmon->tagset[selmon->seltags] ^ (arg->ui & TAGMASK);
 
 	if (newtagset) {
-		/* prevent displaying the same tags on multiple monitors */
+		// prevent displaying the same tags on multiple monitors
 		for (m = mons; m; m = m->next)
 			if (m != selmon && newtagset & m->tagset[m->seltags])
 				return;
@@ -1955,6 +1957,7 @@ toggleview(const Arg *arg)
 		focus(NULL);
 	}
 }
+*/
 
 void
 unfocus(Client *c, int setfocus)
@@ -2272,6 +2275,32 @@ view(const Arg *arg)
 	attachclients(selmon);
 	arrange(selmon);
 	focus(NULL);
+}
+
+void
+viewothermon(const Arg *arg)
+{
+	Monitor *m;
+	unsigned int newtagset;
+
+	if (!mons->next)
+		return;
+
+	m = selmon->next ? selmon->next : mons;
+
+	newtagset = arg->ui & TAGMASK;
+	if (!newtagset || newtagset == m->tagset[m->seltags])
+		return;
+
+	/* prevent displaying same tag on both monitors */
+	if (newtagset & selmon->tagset[selmon->seltags])
+		return;
+
+	m->seltags ^= 1;
+	m->tagset[m->seltags] = newtagset;
+	attachclients(m);
+	arrange(m);
+	arrange(selmon);
 }
 
 Client *
