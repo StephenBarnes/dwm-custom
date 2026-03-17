@@ -1882,15 +1882,17 @@ tile(Monitor *m)
 		mw = m->nmaster ? m->ww * m->mfact : 0;
 	else
 		mw = m->ww;
+	/* mirror layout on leftmost monitor: master on right, stack on left */
+	int mirror = !(m == mons && m->next);
 	for (i = my = ty = 0, c = nexttiled(m->cl->clients, m); c; c = nexttiled(c->next, m), i++)
 		if (i < m->nmaster) {
 			h = (m->wh - my) / (MIN(n, m->nmaster) - i);
-			resize(c, m->wx, m->wy + my, mw - (2*c->bw), h - (2*c->bw), 0);
+			resize(c, mirror ? m->wx + m->ww - mw : m->wx, m->wy + my, mw - (2*c->bw), h - (2*c->bw), 0);
 			if (my + HEIGHT(c) < m->wh)
 				my += HEIGHT(c);
 		} else {
 			h = (m->wh - ty) / (n - i);
-			resize(c, m->wx + mw, m->wy + ty, m->ww - mw - (2*c->bw), h - (2*c->bw), 0);
+			resize(c, mirror ? m->wx : m->wx + mw, m->wy + ty, m->ww - mw - (2*c->bw), h - (2*c->bw), 0);
 			if (ty + HEIGHT(c) < m->wh)
 				ty += HEIGHT(c);
 		}
