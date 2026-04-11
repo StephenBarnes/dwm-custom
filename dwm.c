@@ -21,6 +21,7 @@
  * To understand everything else, start reading main().
  */
 #include <errno.h>
+#include <ctype.h>
 #include <locale.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -168,6 +169,7 @@ static void detachstack(Client *c);
 static Monitor *dirtomon(int dir);
 static void drawbar(Monitor *m);
 static void drawbars(void);
+static int drawcoloredstatusbar(Monitor *m, int bh, const char *text);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
 static void focus(Client *c);
@@ -212,6 +214,7 @@ static void setup(void);
 static void seturgent(Client *c, int urg);
 static void showhide(Client *c);
 static void spawn(const Arg *arg);
+static unsigned int statustextwidth(const char *text);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
 static void tile(Monitor *m);
@@ -238,6 +241,7 @@ static Client *wintoclient(Window w);
 static Monitor *wintomon(Window w);
 static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
+
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
 static void applytaglayout(Monitor *m);
@@ -289,6 +293,124 @@ static unsigned int taglayouts_sel[LENGTH(tags)];
 static const Layout *taglayouts[LENGTH(tags)][2];
 
 /* function implementations */
+static int
+isvalidstatuscolor(const char *text)
+{
+	int i;
+
+	if (text[0] != '^' || text[1] != 'c' || text[2] != '#')
+		return 0;
+	for (i = 3; i < 9; i++) {
+		if (!isxdigit((unsigned char)text[i]))
+			return 0;
+	}
+	return text[9] == '^';
+}
+
+static int
+isstatusreset(const char *text)
+{
+	return text[0] == '^' && text[1] == 'd' && text[2] == '^';
+}
+
+static unsigned int
+statustextwidth(const char *text)
+{
+	char clean[sizeof(stext)];
+	size_t i;
+
+	for (i = 0; *text && i < sizeof(clean) - 1;) {
+		if (isvalidstatuscolor(text)) {
+			text += 10;
+			continue;
+		}
+		if (isstatusreset(text)) {
+			text += 3;
+			continue;
+		}
+		clean[i++] = *text++;
+	}
+	clean[i] = '\0';
+
+	return drw_fontset_getwidth(drw, clean) + lrpad;
+}
+
+static int
+drawcoloredstatusbar(Monitor *m, int barheight, const char *text)
+{
+	char buf[sizeof(stext)];
+	char color[8];
+	const char *segmentstart = text;
+	const char *cursor = text;
+	size_t segmentlen = 0;
+	int x;
+	int customfg = 0;
+	Clr scm[3];
+
+	x = m->ww - ((int)statustextwidth(text) - lrpad + 2);
+	memcpy(scm, scheme[SchemeNorm], sizeof(scm));
+
+	while (*cursor) {
+		int markerlen = 0;
+
+		if (isvalidstatuscolor(cursor)) {
+			markerlen = 10;
+			memcpy(color, cursor + 3, 7);
+			color[7] = '\0';
+		} else if (isstatusreset(cursor)) {
+			markerlen = 3;
+		}
+
+		if (markerlen) {
+			if (segmentlen > 0) {
+				unsigned int segw;
+
+				memcpy(buf, segmentstart, segmentlen);
+				buf[segmentlen] = '\0';
+				segw = drw_fontset_getwidth(drw, buf);
+				drw_setscheme(drw, scm);
+				drw_text(drw, x, 0, segw, barheight, 0, buf, 0);
+				x += segw;
+			}
+
+			if (customfg) {
+				XftColorFree(dpy, DefaultVisual(dpy, screen), DefaultColormap(dpy, screen), &scm[ColFg]);
+				customfg = 0;
+			}
+			memcpy(scm, scheme[SchemeNorm], sizeof(scm));
+			if (markerlen == 10) {
+				drw_clr_create(drw, &scm[ColFg], color);
+				customfg = 1;
+			}
+
+			cursor += markerlen;
+			segmentstart = cursor;
+			segmentlen = 0;
+			continue;
+		}
+
+		cursor++;
+		segmentlen++;
+	}
+
+	if (segmentlen > 0) {
+		unsigned int segw;
+
+		memcpy(buf, segmentstart, segmentlen);
+		buf[segmentlen] = '\0';
+		segw = drw_fontset_getwidth(drw, buf);
+		drw_setscheme(drw, scm);
+		drw_text(drw, x, 0, segw + 2, barheight, 0, buf, 0);
+		x += segw;
+	}
+
+	if (customfg)
+		XftColorFree(dpy, DefaultVisual(dpy, screen), DefaultColormap(dpy, screen), &scm[ColFg]);
+
+	drw_setscheme(drw, scheme[SchemeNorm]);
+	return x;
+}
+
 void
 applyrules(Client *c)
 {
@@ -530,7 +652,7 @@ buttonpress(XEvent *e)
 			arg.ui = 1 << i;
 		} else if (ev->x < x + TEXTW(selmon->ltsymbol))
 			click = ClkLtSymbol;
-		else if (ev->x > selmon->ww - (int)TEXTW(stext))
+		else if (ev->x > selmon->ww - (int)statustextwidth(stext))
 			click = ClkStatusText;
 		else
 			click = ClkWinTitle;
@@ -821,8 +943,8 @@ drawbar(Monitor *m)
 
 	/* draw status first so it can be overdrawn by tags later */
 	drw_setscheme(drw, scheme[SchemeNorm]);
-	tw = TEXTW(stext) - lrpad + 2; /* 2px right padding */
-	drw_text(drw, m->ww - tw, 0, tw, bh, 0, stext, 0);
+	tw = statustextwidth(stext) - lrpad + 2; /* 2px right padding */
+	drawcoloredstatusbar(m, bh, stext);
 
 	for (c = m->cl->clients; c; c = c->next) {
 		occ |= c->tags;
