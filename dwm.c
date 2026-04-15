@@ -294,23 +294,169 @@ static const Layout *taglayouts[LENGTH(tags)][2];
 
 /* function implementations */
 static int
-isvalidstatuscolor(const char *text)
+hexnibble(char c)
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	if (c >= 'a' && c <= 'f')
+		return c - 'a' + 10;
+	if (c >= 'A' && c <= 'F')
+		return c - 'A' + 10;
+	return -1;
+}
+
+static void
+rgbtohex(char *out, int r, int g, int b)
+{
+	static const char hex[] = "0123456789abcdef";
+
+	out[0] = '#';
+	out[1] = hex[(r >> 4) & 0xF];
+	out[2] = hex[r & 0xF];
+	out[3] = hex[(g >> 4) & 0xF];
+	out[4] = hex[g & 0xF];
+	out[5] = hex[(b >> 4) & 0xF];
+	out[6] = hex[b & 0xF];
+	out[7] = '\0';
+}
+
+static size_t
+parsecaretstatuscolor(const char *text, char color[8], int *reset)
 {
 	int i;
 
+	*reset = 0;
+	if (text[0] == '^' && text[1] == 'd' && text[2] == '^') {
+		*reset = 1;
+		return 3;
+	}
 	if (text[0] != '^' || text[1] != 'c' || text[2] != '#')
 		return 0;
-	for (i = 3; i < 9; i++) {
-		if (!isxdigit((unsigned char)text[i]))
+	for (i = 0; i < 6; i++) {
+		if (hexnibble(text[3 + i]) < 0)
 			return 0;
 	}
-	return text[9] == '^';
+	if (text[9] != '^')
+		return 0;
+	memcpy(color, text + 2, 7);
+	color[7] = '\0';
+	return 10;
 }
 
 static int
-isstatusreset(const char *text)
+ansitorgb(int code, int *r, int *g, int *b)
 {
-	return text[0] == '^' && text[1] == 'd' && text[2] == '^';
+	static const int ansi[][3] = {
+		{0, 0, 0},
+		{205, 49, 49},
+		{13, 188, 121},
+		{229, 229, 16},
+		{36, 114, 200},
+		{188, 63, 188},
+		{17, 168, 205},
+		{229, 229, 229},
+		{102, 102, 102},
+		{241, 76, 76},
+		{35, 209, 139},
+		{245, 245, 67},
+		{59, 142, 234},
+		{214, 112, 214},
+		{41, 184, 219},
+		{255, 255, 255},
+	};
+
+	if (code >= 30 && code <= 37) {
+		*r = ansi[code - 30][0];
+		*g = ansi[code - 30][1];
+		*b = ansi[code - 30][2];
+		return 1;
+	}
+	if (code >= 90 && code <= 97) {
+		*r = ansi[code - 82][0];
+		*g = ansi[code - 82][1];
+		*b = ansi[code - 82][2];
+		return 1;
+	}
+	return 0;
+}
+
+static size_t
+parseansistatuscolor(const char *text, char color[8], int *reset)
+{
+	const char *cursor = text;
+	int code, consumed = 0;
+	int r = 0, g = 0, b = 0;
+	int seen = 0;
+
+	*reset = 0;
+	if (cursor[0] != '\033' || cursor[1] != '[')
+		return 0;
+	cursor += 2;
+
+	while (*cursor) {
+		if (*cursor == 'm')
+			return seen ? (size_t)(cursor - text + 1) : 0;
+		if (!isdigit((unsigned char)*cursor))
+			return 0;
+
+		code = 0;
+		while (isdigit((unsigned char)*cursor)) {
+			code = (code * 10) + (*cursor - '0');
+			cursor++;
+		}
+
+		if (code == 0 || code == 39) {
+			*reset = 1;
+			seen = 1;
+		} else if (code == 38 && cursor[0] == ';' && cursor[1] == '2' && cursor[2] == ';') {
+			cursor += 3;
+			for (consumed = 0; consumed < 3; consumed++) {
+				int *component = consumed == 0 ? &r : consumed == 1 ? &g : &b;
+				if (!isdigit((unsigned char)*cursor))
+					return 0;
+				*component = 0;
+				while (isdigit((unsigned char)*cursor)) {
+					*component = (*component * 10) + (*cursor - '0');
+					cursor++;
+				}
+				if (*component < 0 || *component > 255)
+					return 0;
+				if (consumed < 2) {
+					if (*cursor != ';')
+						return 0;
+					cursor++;
+				}
+			}
+			rgbtohex(color, r, g, b);
+			*reset = 0;
+			seen = 1;
+		} else if (ansitorgb(code, &r, &g, &b)) {
+			rgbtohex(color, r, g, b);
+			*reset = 0;
+			seen = 1;
+		}
+
+		if (*cursor == ';') {
+			cursor++;
+			continue;
+		}
+		if (*cursor == 'm')
+			return seen ? (size_t)(cursor - text + 1) : 0;
+		return 0;
+	}
+
+	return 0;
+}
+
+static size_t
+parsestatuscolor(const char *text, char color[8], int *reset)
+{
+	size_t len;
+
+	len = parsecaretstatuscolor(text, color, reset);
+	if (len)
+		return len;
+	return parseansistatuscolor(text, color, reset);
 }
 
 static unsigned int
@@ -318,14 +464,14 @@ statustextwidth(const char *text)
 {
 	char clean[sizeof(stext)];
 	size_t i;
+	size_t markerlen;
+	char color[8];
+	int reset;
 
 	for (i = 0; *text && i < sizeof(clean) - 1;) {
-		if (isvalidstatuscolor(text)) {
-			text += 10;
-			continue;
-		}
-		if (isstatusreset(text)) {
-			text += 3;
+		markerlen = parsestatuscolor(text, color, &reset);
+		if (markerlen) {
+			text += markerlen;
 			continue;
 		}
 		clean[i++] = *text++;
@@ -343,24 +489,21 @@ drawcoloredstatusbar(Monitor *m, int barheight, const char *text)
 	const char *segmentstart = text;
 	const char *cursor = text;
 	size_t segmentlen = 0;
+	size_t markerlen;
 	int x;
+	int reset = 0;
 	int customfg = 0;
+	int tw;
 	Clr scm[3];
 
-	x = m->ww - ((int)statustextwidth(text) - lrpad + 2);
+	tw = statustextwidth(text) - lrpad + 2;
+	x = m->ww - tw;
 	memcpy(scm, scheme[SchemeNorm], sizeof(scm));
+	drw_setscheme(drw, scheme[SchemeNorm]);
+	drw_text(drw, x, 0, tw, barheight, 0, "", 0);
 
 	while (*cursor) {
-		int markerlen = 0;
-
-		if (isvalidstatuscolor(cursor)) {
-			markerlen = 10;
-			memcpy(color, cursor + 3, 7);
-			color[7] = '\0';
-		} else if (isstatusreset(cursor)) {
-			markerlen = 3;
-		}
-
+		markerlen = parsestatuscolor(cursor, color, &reset);
 		if (markerlen) {
 			if (segmentlen > 0) {
 				unsigned int segw;
@@ -378,7 +521,7 @@ drawcoloredstatusbar(Monitor *m, int barheight, const char *text)
 				customfg = 0;
 			}
 			memcpy(scm, scheme[SchemeNorm], sizeof(scm));
-			if (markerlen == 10) {
+			if (!reset) {
 				drw_clr_create(drw, &scm[ColFg], color);
 				customfg = 1;
 			}
