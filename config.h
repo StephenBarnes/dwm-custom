@@ -73,12 +73,17 @@ static const Layout layouts[] = {
 /* commands */
 static char dmenumon[2] = "0"; /* component of dmenucmd, manipulated in spawn() */
 static const char *dmenucmd[] = { "dmenu_run", "-m", dmenumon, "-fn", dmenufont, "-nb", col_gray1, "-nf", col_gray3, "-sb", col_cyan, "-sf", col_gray4, NULL };
-static const char *termcmd[]  = { "terminator", NULL };
+static const char *termcmd[]  = { "x-terminal-emulator", NULL };
 static const char *slockcmd[] = { "slock", NULL }; // Lock screen
 
-static const char *upvol[]   = { "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%+", NULL };
-static const char *downvol[] = { "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%-", NULL };
-static const char *mutevol[] = { "wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle", NULL };
+/* ~/bin/vol auto-detects wpctl (PipeWire, desktop) vs pactl (PulseAudio, laptop) */
+static const char *upvol[]   = { "vol", "up", NULL };
+static const char *downvol[] = { "vol", "down", NULL };
+static const char *mutevol[] = { "vol", "mute", NULL };
+// Old versions - only work on desktop, not laptop:
+//static const char *upvol[]   = { "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%+", NULL };
+//static const char *downvol[] = { "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%-", NULL };
+//static const char *mutevol[] = { "wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle", NULL };
 
 // TODO scrot on printscreen key
 
