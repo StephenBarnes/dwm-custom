@@ -80,6 +80,10 @@ static const char *slockcmd[] = { "slock", NULL }; // Lock screen
 static const char *upvol[]   = { "vol", "up", NULL };
 static const char *downvol[] = { "vol", "down", NULL };
 static const char *mutevol[] = { "vol", "mute", NULL };
+
+/* ~/bin/brightness wraps brightnessctl; laptop only, no-ops on desktop */
+static const char *upbright[]   = { "brightness", "up", NULL };
+static const char *downbright[] = { "brightness", "down", NULL };
 // Old versions - only work on desktop, not laptop:
 //static const char *upvol[]   = { "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%+", NULL };
 //static const char *downvol[] = { "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%-", NULL };
@@ -149,6 +153,10 @@ static const Key keys[] = {
 	{0, XF86XK_AudioRaiseVolume, spawn, {.v = upvol}},
 	{0, XF86XK_AudioLowerVolume, spawn, {.v = downvol}},
 	{0, XF86XK_AudioMute, spawn, {.v = mutevol}},
+
+	// Screen brightness (laptop)
+	{0, XF86XK_MonBrightnessUp, spawn, {.v = upbright}},
+	{0, XF86XK_MonBrightnessDown, spawn, {.v = downbright}},
 
 	// Clipmenu (clipboard manager) with mod+v
 	{MODKEY, XK_v, spawn, SHCMD("clipmenu")},
